@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPU Scheduling</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f8f9fa;
+  }
+  .container {
+    text-align: center;
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  h1 {
+    margin-bottom: 20px;
+    color: #343a40;
+  }
+  button {
+    padding: 10px 20px;
+    margin: 5px;
+    background-color: #036142;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+  }
+  button:hover {
+    background-color: #0056b3;
+  }
+  #result {
+    margin-top: 20px;
+    text-align: left;
+  }
+  #inputForm {
+    margin-top: 20px;
+    text-align: left;
+  }
+  #inputForm h2 {
+    color: #343a40;
+  }
+  label, input {
+    display: block;
+    margin: 10px 0;
+  }
+  input {
+    padding: 8px;
+    width: calc(100% - 18px);
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 20px;
+  }
+  th, td {
+    border: 1px solid #dee2e6;
+    text-align: left;
+    padding: 12px;
+  }
+  th {
+    background-color: #e9ecef;
+  }
+  tr:nth-child(even) {
+    background-color: #f8f9fa;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>CPU Scheduling</h1>
+  <button onclick="firstComeFirstServe()">First Come First Serve</button>
+  <button onclick="shortestJobFirst()">Shortest Job First</button>
+  <button onclick="roundRobin()">Round Robin</button>
+  <div id="result"></div>
+  <div id="inputForm">
+    <h2>Add Process</h2>
+    <label for="arrivalTime">Arrival Time:</label>
+    <input type="number" id="arrivalTime">
+    <label for="burstTime">Burst Time:</label>
+    <input type="number" id="burstTime">
+    <button onclick="addProcess()">Add Process</button>
+  </div>
+  <div id="quantumForm">
+    <h2>Set Quantum Time for Round Robin</h2>
+    <label for="quantumTime">Quantum Time:</label>
+    <input type="number" id="quantumTime">
+  </div>
+  <table id="processesTable">
+    <tr>
+      <th>Process</th>
+      <th>Arrival Time</th>
+      <th>Burst Time</th>
+    </tr>
+  </table>
+</div>
+
+<script>
+  let processes = [];
+
+  function addProcess() {
+    let arrivalTime = parseInt(document.getElementById('arrivalTime').value);
+    let burstTime = parseInt(document.getElementById('burstTime').value);
+    if (!isNaN(arrivalTime) && !isNaN(burstTime)) {
+      processes.push({ arrivalTime, burstTime });
+      updateProcessesTable();
+    }
+  }
+
+  function updateProcessesTable() {
+    let table = document.getElementById('processesTable');
+    table.innerHTML = `
+      <tr>
+        <th>Process</th>
+        <th>Arrival Time</th>
+        <th>Burst Time</th>
+      </tr>`;
+    for (let i = 0; i < processes.length; i++) {
+      let row = table.insertRow();
+      row.insertCell().innerText = `P${i + 1}`;
+      row.insertCell().innerText = processes[i].arrivalTime;
+      row.insertCell().innerText = processes[i].burstTime;
+    }
+  }
+
+  function firstComeFirstServe() {
+    document.getElementById('result').innerHTML = "First Come First Serve Algorithm selected.";
+    let completionTimes = new Array(processes.length).fill(0);
+    let turnaroundTimes = new Array(processes.length).fill(0);
+    let waitingTimes = new Array(processes.length).fill(0);
+    let totalWaitingTime = 0;
+    for (let i = 0; i < processes.length; i++) {
+      completionTimes[i] = i === 0 ? processes[i].burstTime : completionTimes[i - 1] + processes[i].burstTime;
+      turnaroundTimes[i] = completionTimes[i] - processes[i].arrivalTime;
+      waitingTimes[i] = turnaroundTimes[i] - processes[i].burstTime;
+      totalWaitingTime += waitingTimes[i];
+    }
+    let avgWaitingTime = totalWaitingTime / processes.length;
+    let avgTurnaroundTime = turnaroundTimes.reduce((acc, val) => acc + val, 0) / processes.length;
+    displayResults(completionTimes, turnaroundTimes, waitingTimes, avgWaitingTime, avgTurnaroundTime);
+  }
+
+  function shortestJobFirst() {
+    document.getElementById('result').innerHTML = "Shortest Job First Algorithm selected.";
+    let n = processes.length;
+    let completionTimes = new Array(n).fill(0);
+    let turnaroundTimes = new Array(n).fill(0);
+    let waitingTimes = new Array(n).fill(0);
+    let totalWaitingTime = 0;
+    let totalTime = 0;
+    let completed = 0;
+    let isVisited = new Array(n).fill(false);
+
+    while (completed != n) {
+      let idx = -1;
+      let minBurstTime = Infinity;
+
+      for (let i = 0; i < n; i++) {
+        if (processes[i].arrivalTime <= totalTime && !isVisited[i] && processes[i].burstTime < minBurstTime) {
+          minBurstTime = processes[i].burstTime;
+          idx = i;
+        }
+      }
+
+      if (idx !== -1) {
+        totalTime += processes[idx].burstTime;
+        completionTimes[idx] = totalTime;
+        turnaroundTimes[idx] = completionTimes[idx] - processes[idx].arrivalTime;
+        waitingTimes[idx] = Math.max(turnaroundTimes[idx] - processes[idx].burstTime, 0);
+        totalWaitingTime += waitingTimes[idx];
+        isVisited[idx] = true;
+        completed++;
+      } else {
+        totalTime++;
+      }
+    }
+
+    let avgWaitingTime = totalWaitingTime / n;
+    let avgTurnaroundTime = turnaroundTimes.reduce((acc, val) => acc + val, 0) / n;
+
+    displayResults(completionTimes, turnaroundTimes, waitingTimes, avgWaitingTime, avgTurnaroundTime);
+  }
+
+  function roundRobin() {
+    let quantum = parseInt(document.getElementById('quantumTime').value);
+    if (isNaN(quantum) || quantum <= 0) {
+      alert("Please enter a valid quantum time.");
+      return;
+    }
+    document.getElementById('result').innerHTML = "Round Robin Algorithm selected.";
+  
+    let remainingBurstTimes = [];
+    let completionTimes = [];
+    let turnaroundTimes = [];
+    let waitingTimes = [];
+  
+    
+    for (let i = 0; i < processes.length; i++) {
+      remainingBurstTimes.push(processes[i].burstTime);
+    }
+  
+    let currentTime = 0;
+    let flag = true;
+  
+    while (flag) {
+      flag = false;
+    
+      for (let i = 0; i < processes.length; i++) {
+        if (remainingBurstTimes[i] > 0) {
+          flag = true;
+        
+          if (remainingBurstTimes[i] > quantum) {
+            currentTime += quantum;
+            remainingBurstTimes[i] -= quantum;
+          } else {
+            currentTime += remainingBurstTimes[i];
+            completionTimes[i] = currentTime;
+            remainingBurstTimes[i] = 0;
+          }
+        }
+      }
+    }
+  
+    // Calculate turnaround and waiting times
+    for (let i = 0; i < processes.length; i++) {
+      turnaroundTimes[i] = completionTimes[i] - processes[i].arrivalTime;
+      waitingTimes[i] = turnaroundTimes[i] - processes[i].burstTime;
+    }
+  
+    // Calculate average waiting and turnaround times
+    let totalWaitingTime = waitingTimes.reduce((acc, val) => acc + val, 0);
+    let totalTurnaroundTime = turnaroundTimes.reduce((acc, val) => acc + val, 0);
+    let avgWaitingTime = totalWaitingTime / processes.length;
+    let avgTurnaroundTime = totalTurnaroundTime / processes.length;
+  
+    displayResults(completionTimes, turnaroundTimes, waitingTimes, avgWaitingTime, avgTurnaroundTime);
+  }
+
+  function displayResults(completionTimes, turnaroundTimes, waitingTimes, avgWaitingTime, avgTurnaroundTime) {
+    let table = document.createElement('table');
+    table.innerHTML = `
+      <tr>
+        <th>Process</th>
+        <th>Completion Time</th>
+        <th>Turnaround Time</th>
+        <th>Waiting Time</th>
+      </tr>`;
+    for (let i = 0; i < processes.length; i++) {
+      let row = table.insertRow();
+      row.insertCell().innerText = `P${i + 1}`;
+      row.insertCell().innerText = completionTimes[i];
+      row.insertCell().innerText = turnaroundTimes[i];
+      row.insertCell().innerText = waitingTimes[i];
+    }
+    document.getElementById('result').innerHTML = '';
+    document.getElementById('result').appendChild(table);
+    document.getElementById('result').insertAdjacentHTML('beforeend', `<p>Average Waiting Time: ${avgWaitingTime.toFixed(2)}</p>`);
+    document.getElementById('result').insertAdjacentHTML('beforeend', `<p>Average Turnaround Time: ${avgTurnaroundTime.toFixed(2)}</p>`);
+  }
+</script>
+</body>
+</html>
